@@ -19,10 +19,10 @@ export const Route = createFileRoute("/scanning")({
       { property: "og:title", content: "PrivX AI Scan in progress" },
       { property: "og:description", content: "PrivX is analyzing your document..." },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "https://echo-protect-ai.lovable.app/scanning" },
+      { property: "og:url", content: "https://privx.app/scanning" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
-    links: [{ rel: "canonical", href: "https://echo-protect-ai.lovable.app/scanning" }],
+    links: [{ rel: "canonical", href: "https://privx.app/scanning" }],
   }),
   component: ScanningPage,
 });

@@ -1,9 +1,10 @@
-import { Link } from "@tanstack/react-router";
-import { UserRound, Menu } from "lucide-react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { LogOut, Menu, UserRound } from "lucide-react";
 import privxLogo from "@/assets/privx-logo.png";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { getStoredUser, logout, type AuthUser } from "@/lib/auth-api";
 
 const links = [
   { to: "/", label: "Home" },
@@ -14,7 +15,30 @@ const links = [
 ] as const;
 
 export function SiteHeader() {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(null);
+
+  useEffect(() => {
+    setUser(getStoredUser());
+  }, []);
+
+  const handleLogout = async () => {
+    await logout();
+    setUser(null);
+    setMenuOpen(false);
+    navigate({ to: "/" });
+  };
+
+  const initials = user
+    ? user.name
+        .split(" ")
+        .map((p) => p[0])
+        .slice(0, 2)
+        .join("")
+        .toUpperCase()
+    : "";
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/70 bg-background/85 backdrop-blur-xl">
@@ -46,17 +70,47 @@ export function SiteHeader() {
           ))}
         </nav>
 
-        <div className="flex items-center gap-2">
+        <div className="relative flex items-center gap-2">
           <Button asChild size="sm" className="hidden sm:inline-flex">
             <Link to="/scan">Scan a Document</Link>
           </Button>
-          <button
-            type="button"
-            aria-label="Profile"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-secondary text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <UserRound className="h-4 w-4" />
-          </button>
+
+          {user ? (
+            <div className="relative">
+              <button
+                type="button"
+                aria-label="Account menu"
+                onClick={() => setMenuOpen((v) => !v)}
+                className="gradient-ai flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold text-primary-foreground"
+              >
+                {initials}
+              </button>
+              {menuOpen && (
+                <div className="absolute right-0 top-11 w-48 rounded-xl border border-border bg-card p-2 shadow-soft">
+                  <div className="px-2 py-1.5">
+                    <p className="truncate text-sm font-medium">{user.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="mt-1 flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-danger hover:bg-danger/10"
+                  >
+                    <LogOut className="h-3.5 w-3.5" /> Log out
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <Link
+              to="/login"
+              aria-label="Log in"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-secondary text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <UserRound className="h-4 w-4" />
+            </Link>
+          )}
+
           <button
             type="button"
             aria-label="Menu"

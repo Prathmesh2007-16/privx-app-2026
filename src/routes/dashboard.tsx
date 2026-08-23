@@ -1,12 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { AlertTriangle, FileSearch, ScanLine, ShieldCheck } from "lucide-react";
+import { useEffect, useState } from "react";
+import { AlertTriangle, FileSearch, Loader2, ScanLine, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RiskBadge } from "@/components/risk-badge";
+import type { RiskLevel } from "@/lib/pii-data";
 import {
-  piiTypeChartData,
-  recentScans,
-  riskDistributionData,
-  scansOverTimeData,
+  piiTypeChartData as demoPiiTypeChartData,
+  recentScans as demoRecentScans,
+  riskDistributionData as demoRiskDistributionData,
+  scansOverTimeData as demoScansOverTimeData,
 } from "@/lib/pii-data";
 
 export const Route = createFileRoute("/dashboard")({
@@ -32,18 +34,88 @@ export const Route = createFileRoute("/dashboard")({
   component: DashboardPage,
 });
 
-const maxType = Math.max(...piiTypeChartData.map((d) => d.count));
-const maxScans = Math.max(...scansOverTimeData.map((d) => d.scans));
-const totalRisk = riskDistributionData.reduce((a, b) => a + b.value, 0);
+const API_BASE = "http://localhost:8000";
 
-const stats = [
-  { icon: FileSearch, label: "Documents scanned", value: "1,428" },
-  { icon: ShieldCheck, label: "PrivX Safe Copies", value: "912" },
-  { icon: AlertTriangle, label: "High / critical findings", value: "230" },
-  { icon: ScanLine, label: "Avg. privacy risk score", value: "54" },
-];
+interface DashboardStats {
+  documentsScanned: number;
+  safeCopies: number;
+  highCriticalFindings: number;
+  avgRiskScore: number;
+}
+
+interface DashboardData {
+  stats: DashboardStats;
+  piiTypeChartData: { type: string; count: number }[];
+  riskDistributionData: { name: string; value: number; key: RiskLevel }[];
+  scansOverTimeData: { month: string; scans: number; highRisk: number }[];
+  recentScans: { id: string; name: string; date: string; score: number; entities: number; status: RiskLevel }[];
+  hasData: boolean;
+}
 
 function DashboardPage() {
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [usingDemo, setUsingDemo] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${API_BASE}/api/dashboard`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Dashboard request failed");
+        return res.json();
+      })
+      .then((json: DashboardData) => {
+        if (cancelled) return;
+        if (!json.hasData) {
+          // No real scans yet — show demo data so the page isn't empty,
+          // but flag it so we can say so on screen.
+          setUsingDemo(true);
+        } else {
+          setData(json);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setUsingDemo(true);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const piiTypeChartData = data?.piiTypeChartData?.length ? data.piiTypeChartData : demoPiiTypeChartData;
+  const riskDistributionData = data?.riskDistributionData ?? demoRiskDistributionData;
+  const scansOverTimeData = data?.scansOverTimeData?.length ? data.scansOverTimeData : demoScansOverTimeData;
+  const recentScans = data?.recentScans?.length ? data.recentScans : demoRecentScans;
+
+  const stats = data?.stats ?? {
+    documentsScanned: 1428,
+    safeCopies: 912,
+    highCriticalFindings: 230,
+    avgRiskScore: 54,
+  };
+
+  const statCards = [
+    { icon: FileSearch, label: "Documents scanned", value: String(stats.documentsScanned) },
+    { icon: ShieldCheck, label: "PrivX Safe Copies", value: String(stats.safeCopies) },
+    { icon: AlertTriangle, label: "High / critical findings", value: String(stats.highCriticalFindings) },
+    { icon: ScanLine, label: "Avg. privacy risk score", value: String(stats.avgRiskScore) },
+  ];
+
+  const maxType = Math.max(1, ...piiTypeChartData.map((d) => d.count));
+  const maxScans = Math.max(1, ...scansOverTimeData.map((d) => d.scans));
+  const totalRisk = Math.max(1, riskDistributionData.reduce((a, b) => a + b.value, 0));
+
+  if (loading) {
+    return (
+      <div className="mx-auto flex max-w-7xl items-center justify-center px-4 py-32">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -51,7 +123,9 @@ function DashboardPage() {
           <span className="text-xs font-semibold tracking-widest text-ai uppercase">Organization</span>
           <h1 className="mt-2 font-display text-3xl font-bold sm:text-4xl">PrivX Dashboard</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Protected by PrivX — synthetic demo data across all widgets.
+            {usingDemo || !data
+              ? "No scans yet — showing synthetic demo data. Run a scan to see your real numbers here."
+              : "Live stats from your PrivX scan history."}
           </p>
         </div>
         <Button asChild className="gradient-ai border-0 shadow-glow">
@@ -62,7 +136,7 @@ function DashboardPage() {
       </div>
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((s) => (
+        {statCards.map((s) => (
           <div key={s.label} className="card-surface p-5">
             <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-accent-foreground">
               <s.icon className="h-4 w-4" />

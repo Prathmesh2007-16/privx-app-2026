@@ -14,10 +14,10 @@ export const Route = createFileRoute("/about")({
       { property: "og:title", content: "About PrivX" },
       { property: "og:description", content: "Detect. Analyze. Protect. — the mission behind PrivX." },
       { property: "og:type", content: "article" },
-      { property: "og:url", content: "https://echo-protect-ai.lovable.app/about" },
+      { property: "og:url", content: "https://privx.app/about" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
-    links: [{ rel: "canonical", href: "https://echo-protect-ai.lovable.app/about" }],
+    links: [{ rel: "canonical", href: "https://privx.app/about" }],
   }),
   component: AboutPage,
 });

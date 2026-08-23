@@ -19,10 +19,10 @@ export const Route = createFileRoute("/how-it-works")({
         content: "Inside the PrivX three-layer PII detection and privacy risk engine.",
       },
       { property: "og:type", content: "article" },
-      { property: "og:url", content: "https://echo-protect-ai.lovable.app/how-it-works" },
+      { property: "og:url", content: "https://privx.app/how-it-works" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
-    links: [{ rel: "canonical", href: "https://echo-protect-ai.lovable.app/how-it-works" }],
+    links: [{ rel: "canonical", href: "https://privx.app/how-it-works" }],
   }),
   component: HowItWorksPage,
 });
