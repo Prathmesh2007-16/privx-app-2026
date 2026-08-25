@@ -32,7 +32,11 @@ export function SiteFooter() {
         </div>
       </div>
       <div className="border-t border-border px-4 py-5 text-center text-xs text-muted-foreground sm:px-6">
-        Prototype only — PrivX does not verify whether any identifier belongs to a real person.
+        <p>Prototype only — PrivX does not verify whether any identifier belongs to a real person.</p>
+        <p className="mt-1">
+          Built by <span className="font-medium text-foreground">Prathmesh Manoj Chaure</span> — 3rd Year,
+          Electronics (VLSI Design &amp; Technology)
+        </p>
       </div>
     </footer>
   );
