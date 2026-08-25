@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:8000";
+const API_BASE = "https://privx-backend-eadt.onrender.com";
 const TOKEN_KEY = "privx_token";
 const USER_KEY = "privx_user";
 

@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { AlertTriangle, FileSearch, Loader2, ScanLine, ShieldCheck } from "lucide-react";
+import { AlertTriangle, FileSearch, Loader2, Lock, ScanLine, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RiskBadge } from "@/components/risk-badge";
 import type { RiskLevel } from "@/lib/pii-data";
+import { getToken } from "@/lib/auth-api";
 import {
   piiTypeChartData as demoPiiTypeChartData,
   recentScans as demoRecentScans,
@@ -14,27 +15,23 @@ import {
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
     meta: [
-      { title: "PrivX Dashboard — Organization Privacy Overview" },
+      { title: "PrivX Dashboard — Your Privacy Overview" },
       {
         name: "description",
-        content:
-          "PrivX Dashboard: organization-wide scan volume, detected PII types, privacy risk distribution and recent document scans.",
+        content: "PrivX Dashboard: your scan volume, detected PII types, privacy risk distribution and recent document scans.",
       },
       { property: "og:title", content: "PrivX Dashboard" },
-      {
-        property: "og:description",
-        content: "Organization-wide privacy risk overview powered by PrivX.",
-      },
+      { property: "og:description", content: "Your personal privacy risk overview, powered by PrivX." },
       { property: "og:type", content: "website" },
-      { property: "og:url", content: "https://echo-protect-ai.lovable.app/dashboard" },
+      { property: "og:url", content: "https://privx.app/dashboard" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
-    links: [{ rel: "canonical", href: "https://echo-protect-ai.lovable.app/dashboard" }],
+    links: [{ rel: "canonical", href: "https://privx.app/dashboard" }],
   }),
   component: DashboardPage,
 });
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = "https://privx-backend-eadt.onrender.com";
 
 interface DashboardStats {
   documentsScanned: number;
@@ -50,32 +47,33 @@ interface DashboardData {
   scansOverTimeData: { month: string; scans: number; highRisk: number }[];
   recentScans: { id: string; name: string; date: string; score: number; entities: number; status: RiskLevel }[];
   hasData: boolean;
+  requiresLogin: boolean;
 }
 
 function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [usingDemo, setUsingDemo] = useState(false);
+  const [requiresLogin, setRequiresLogin] = useState(false);
+  const [fetchFailed, setFetchFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    fetch(`${API_BASE}/api/dashboard`)
+    const token = getToken();
+
+    fetch(`${API_BASE}/api/dashboard`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    })
       .then((res) => {
         if (!res.ok) throw new Error("Dashboard request failed");
         return res.json();
       })
       .then((json: DashboardData) => {
         if (cancelled) return;
-        if (!json.hasData) {
-          // No real scans yet — show demo data so the page isn't empty,
-          // but flag it so we can say so on screen.
-          setUsingDemo(true);
-        } else {
-          setData(json);
-        }
+        setRequiresLogin(!!json.requiresLogin);
+        setData(json);
       })
       .catch(() => {
-        if (!cancelled) setUsingDemo(true);
+        if (!cancelled) setFetchFailed(true);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -85,17 +83,47 @@ function DashboardPage() {
     };
   }, []);
 
+  if (loading) {
+    return (
+      <div className="mx-auto flex max-w-7xl items-center justify-center px-4 py-32">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  // Not logged in — this is a privacy tool, so we don't show anyone's scan
+  // history (not even demo-mixed-with-real) until they've signed in.
+  if (requiresLogin) {
+    return (
+      <div className="mx-auto flex max-w-md flex-col items-center px-4 py-32 text-center">
+        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-secondary">
+          <Lock className="h-5 w-5 text-muted-foreground" />
+        </span>
+        <h1 className="mt-4 font-display text-2xl font-bold">Log in to view your Dashboard</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Your scan history and privacy stats are tied to your account. Log in or create one to see them here.
+        </p>
+        <div className="mt-6 flex gap-3">
+          <Button asChild className="gradient-ai border-0 shadow-glow">
+            <Link to="/login">Log In</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link to="/signup">Sign Up</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const usingDemo = fetchFailed || !data || !data.hasData;
   const piiTypeChartData = data?.piiTypeChartData?.length ? data.piiTypeChartData : demoPiiTypeChartData;
-  const riskDistributionData = data?.riskDistributionData ?? demoRiskDistributionData;
+  const riskDistributionData = data?.hasData ? data.riskDistributionData : demoRiskDistributionData;
   const scansOverTimeData = data?.scansOverTimeData?.length ? data.scansOverTimeData : demoScansOverTimeData;
   const recentScans = data?.recentScans?.length ? data.recentScans : demoRecentScans;
 
-  const stats = data?.stats ?? {
-    documentsScanned: 1428,
-    safeCopies: 912,
-    highCriticalFindings: 230,
-    avgRiskScore: 54,
-  };
+  const stats = data?.hasData
+    ? data.stats
+    : { documentsScanned: 1428, safeCopies: 912, highCriticalFindings: 230, avgRiskScore: 54 };
 
   const statCards = [
     { icon: FileSearch, label: "Documents scanned", value: String(stats.documentsScanned) },
@@ -108,23 +136,15 @@ function DashboardPage() {
   const maxScans = Math.max(1, ...scansOverTimeData.map((d) => d.scans));
   const totalRisk = Math.max(1, riskDistributionData.reduce((a, b) => a + b.value, 0));
 
-  if (loading) {
-    return (
-      <div className="mx-auto flex max-w-7xl items-center justify-center px-4 py-32">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
   return (
     <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <span className="text-xs font-semibold tracking-widest text-ai uppercase">Organization</span>
+          <span className="text-xs font-semibold tracking-widest text-ai uppercase">Your Account</span>
           <h1 className="mt-2 font-display text-3xl font-bold sm:text-4xl">PrivX Dashboard</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            {usingDemo || !data
-              ? "No scans yet — showing synthetic demo data. Run a scan to see your real numbers here."
+            {usingDemo
+              ? "You haven't scanned anything yet — showing synthetic demo data. Run a scan to see your real numbers here."
               : "Live stats from your PrivX scan history."}
           </p>
         </div>

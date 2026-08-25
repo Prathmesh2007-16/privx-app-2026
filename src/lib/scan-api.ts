@@ -1,4 +1,5 @@
 import type { RiskLevel, DetectedEntity } from "./pii-data";
+import { getToken } from "./auth-api";
 
 /** Shape returned by the FastAPI backend's /api/scan endpoint. */
 export interface ScanApiResult {
@@ -16,15 +17,18 @@ export interface ScanApiResult {
 }
 
 // Change this if you deploy the backend somewhere other than localhost.
-const API_BASE = "http://localhost:8000";
+const API_BASE = " https://privx-backend-eadt.onrender.com ";
 const STORAGE_KEY = "privx_scan_result";
 
 export async function scanDocument(file: File): Promise<ScanApiResult> {
   const formData = new FormData();
   formData.append("file", file);
 
+  const token = getToken();
+
   const res = await fetch(`${API_BASE}/api/scan`, {
     method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     body: formData,
   });
 
