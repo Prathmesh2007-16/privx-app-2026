@@ -55,6 +55,22 @@ function safeFileStem(name: string) {
   return name.replace(/\.[^/.]+$/, "").replace(/[^a-z0-9_-]+/gi, "_");
 }
 
+/** Decodes a base64 payload and triggers a real file download (e.g. the redacted PDF/image). */
+function downloadBase64File(filename: string, base64: string, mime: string) {
+  const byteChars = atob(base64);
+  const byteNumbers = new Array(byteChars.length);
+  for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+  const blob = new Blob([new Uint8Array(byteNumbers)], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 function ReportPage() {
   // If a real scan was just run, use it. Otherwise fall back to the
   // built-in synthetic demo data (unchanged from before).
@@ -115,6 +131,13 @@ function ReportPage() {
 
   const handleDownloadSafeCopy = () => {
     downloadTextFile(`${stem}_privx_safe_copy.txt`, protectedLines.join("\n"));
+  };
+
+  const hasVisualRedaction = !!(scan?.redacted_file_base64 && scan?.redacted_file_name && scan?.redacted_file_mime);
+
+  const handleDownloadRedactedFile = () => {
+    if (!scan?.redacted_file_base64 || !scan?.redacted_file_name || !scan?.redacted_file_mime) return;
+    downloadBase64File(scan.redacted_file_name, scan.redacted_file_base64, scan.redacted_file_mime);
   };
 
   return (
@@ -222,9 +245,22 @@ function ReportPage() {
           <pre className="mt-4 whitespace-pre-wrap rounded-xl bg-safe/10 p-4 font-mono text-xs">
             {protectedLines.join("\n")}
           </pre>
-          <Button variant="outline" className="mt-4" onClick={handleDownloadSafeCopy}>
-            <Download className="h-4 w-4" /> Download PrivX Safe Copy
-          </Button>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {hasVisualRedaction && (
+              <Button className="gradient-ai border-0 shadow-glow" onClick={handleDownloadRedactedFile}>
+                <Download className="h-4 w-4" /> Download Redacted Document
+              </Button>
+            )}
+            <Button variant="outline" onClick={handleDownloadSafeCopy}>
+              <Download className="h-4 w-4" /> Download Plain Text Copy
+            </Button>
+          </div>
+          {hasVisualRedaction && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              The redacted document keeps the original layout — sensitive values are permanently blacked out
+              in place, not just replaced with text.
+            </p>
+          )}
         </div>
       </section>
 

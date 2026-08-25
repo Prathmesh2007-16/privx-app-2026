@@ -14,10 +14,13 @@ export interface ScanApiResult {
   protected_lines: string[];
   original_lines: string[];
   recommendations: string[];
+  redacted_file_base64: string | null;
+  redacted_file_name: string | null;
+  redacted_file_mime: string | null;
 }
 
 // Change this if you deploy the backend somewhere other than localhost.
-const API_BASE = "https://privx-backend-eadt.onrender.com";
+const API_BASE = "http://localhost:8000";
 const STORAGE_KEY = "privx_scan_result";
 
 export async function scanDocument(file: File): Promise<ScanApiResult> {
