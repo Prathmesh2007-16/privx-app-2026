@@ -19,8 +19,8 @@ export interface ScanApiResult {
   redacted_file_mime: string | null;
 }
 
-// Change this if you deploy the backend somewhere other than localhost.
-const API_BASE = "http://localhost:8000";
+// Change this if you deploy the backend somewhere other than this URL.
+const API_BASE = "https://privx-backend-eadt.onrender.com";
 const STORAGE_KEY = "privx_scan_result";
 
 export async function scanDocument(file: File): Promise<ScanApiResult> {
